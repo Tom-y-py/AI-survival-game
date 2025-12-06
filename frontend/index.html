@@ -3,195 +3,303 @@
 <head>
     <meta charset="UTF-8">
     <title>AI Hunger Games</title>
-
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            background: #f5f5f5;
-        }
+        /* --- LIGHT THEME RESTORED --- */
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; padding: 20px; background: #f5f5f5; color: #333; }
+        h1 { text-align: center; margin-bottom: 20px; color: #2c3e50; }
 
-        h1 {
-            text-align: center;
-            margin-bottom: 20px;
-        }
+        /* --- SETUP SCREEN --- */
+        #setup-screen { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .slider-container { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+        input[type=range] { flex-grow: 1; margin: 0 15px; cursor: pointer; }
+        
+        .agent-row { display: flex; align-items: center; gap: 15px; margin-bottom: 10px; padding: 10px; background: #fafafa; border: 1px solid #eee; border-radius: 8px; }
+        .agent-avatar { width: 40px; height: 40px; border-radius: 5px; background: #ddd; }
+        input[type="text"] { padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; background: white; color: #333; width: 100%; }
+        
+        .btn-primary { background: #3498db; color: white; border: none; padding: 12px 24px; font-size: 16px; border-radius: 6px; cursor: pointer; width: 100%; margin-top: 10px; transition: 0.2s; }
+        .btn-primary:hover { background: #2980b9; }
 
-        /* Arena grid */
-        #arena {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 15px;
-            margin-bottom: 25px;
+        /* --- ARENA --- */
+        #arena-screen { display: none; max-width: 1000px; margin: 0 auto; }
+        #arena { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 30px; }
+        
+        /* PLAYER CARD */
+        .player-card { 
+            background: white; color: #333; padding: 15px; border-radius: 8px; text-align: center; 
+            cursor: pointer; transition: transform 0.2s, box-shadow 0.3s; border: 2px solid #eee;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
         }
+        .player-card:hover { transform: translateY(-5px); box-shadow: 0 5px 15px rgba(0,0,0,0.15); border-color: #3498db;}
+        .player-card img { width: 80px; height: 80px; margin-bottom: 10px; }
+        
+        /* ELIMINATED STATE */
+        .eliminated { 
+            opacity: 0.6; 
+            filter: grayscale(100%); 
+            background: #f0f0f0; 
+            border-color: #e74c3c; 
+        }
+        .eliminated h3 { text-decoration: line-through; color: #999; }
 
-        .player-card {
-            padding: 15px;
-            background: white;
-            border-radius: 6px;
-            border: 2px solid #333;
-            text-align: center;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-            transition: 0.3s;
-        }
+        /* LOG & CONTROLS */
+        #log { background: white; padding: 20px; height: 300px; overflow-y: auto; border-radius: 8px; font-family: monospace; line-height: 1.5; border: 1px solid #ccc; }
+        #controls { display: flex; gap: 10px; margin-bottom: 20px; }
+        #promptInput { padding: 12px; border-radius: 6px; border: 1px solid #ccc; font-size: 16px; flex-grow: 1; }
 
-        .eliminated {
-            opacity: 0.4;
-            border-color: red;
-            filter: grayscale(100%);
-        }
+        /* LOADING SPINNER */
+        #loadingSpinner { display: none; margin: 20px auto; border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        #controls {
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-            margin-bottom: 20px;
-        }
-
-        input[type="text"] {
-            width: 350px;
-            padding: 8px;
-            font-size: 16px;
-        }
-
-        button {
-            padding: 10px 15px;
-            font-size: 16px;
-            cursor: pointer;
-        }
-
-        /* Log */
-        #log {
-            background: white;
-            border: 2px solid #333;
-            padding: 15px;
-            height: 250px;
-            overflow-y: auto;
-            border-radius: 6px;
-        }
-
-        /* ====================== LOADING SPINNER ====================== */
-        #loadingSpinner {
-            display: none; /* hidden by default */
-            margin: 20px auto;
-            border: 8px solid #ddd;
-            border-top: 8px solid #333;
-            border-radius: 50%;
-            width: 60px;
-            height: 60px;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            from { transform: rotate(0deg); }
-            to   { transform: rotate(360deg); }
-        }
+        /* --- MODAL (POPUP) --- */
+        #modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 100; justify-content: center; align-items: center; }
+        #modal-content { background: white; color: #333; width: 600px; max-height: 80vh; padding: 25px; border-radius: 10px; overflow-y: auto; position: relative; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        .close-btn { position: absolute; top: 15px; right: 20px; font-size: 24px; cursor: pointer; font-weight: bold; color: #888; }
+        .history-item { background: #f9f9f9; padding: 10px; margin-bottom: 10px; border-radius: 5px; border: 1px solid #eee; }
+        .vote-item { border-left: 4px solid #e74c3c; padding-left: 10px; margin-top: 5px; font-style: italic; font-size: 0.9em; color: #555; }
+        
+        /* WINNER OVERLAY */
+        #winner-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(52, 152, 219, 0.95); z-index: 200; flex-direction: column; justify-content: center; align-items: center; text-align: center; color: white; }
+        #winner-overlay h1 { font-size: 4rem; margin: 0; text-shadow: 2px 2px 0px rgba(0,0,0,0.2); }
+        #winner-overlay img { width: 200px; height: 200px; margin-top: 20px; background: white; border-radius: 50%; padding: 10px; }
     </style>
 </head>
 <body>
 
-<h1>AI Hunger Games Simulator</h1>
+<h1>AI Hunger Games</h1>
 
-<!-- Arena -->
-<div id="arena"></div>
-
-<!-- Controls -->
-<div id="controls">
-    <input id="promptInput" type="text" placeholder="Enter next question..." />
-    <button onclick="initGame()">Start Game</button>
-    <button onclick="playRound()">Next Round</button>
+<div id="setup-screen">
+    <div class="slider-container">
+        <span>Tributes: <strong id="sliderValue">4</strong></span>
+        <input type="range" id="agentSlider" min="2" max="10" value="4">
+    </div>
+    <div id="agents-config"></div>
+    <button class="btn-primary" onclick="validateAndStart()">Enter Arena</button>
 </div>
 
-<!-- ====================== LOADING SPINNER ELEMENT ====================== -->
-<div id="loadingSpinner"></div>
+<div id="arena-screen">
+    <div id="arena"></div>
+    <div id="controls">
+        <input id="promptInput" type="text" placeholder="Enter scenario..." />
+        <button class="btn-primary" style="width: auto;" onclick="playRound()">Next Round</button>
+    </div>
+    <div id="loadingSpinner"></div>
+    <div id="log">Waiting for the Gamemaker...</div>
+</div>
 
-<!-- Log -->
-<div id="log">Round results will appear here...</div>
+<div id="modal-overlay" onclick="closeModal(event)">
+    <div id="modal-content">
+        <span class="close-btn" onclick="closeModal(event)">×</span>
+        <h2 id="modal-name">Name</h2>
+        <p id="modal-persona" style="font-style: italic; color: #666;">Persona</p>
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
+        <h3>Response History</h3>
+        <div id="modal-history"></div>
+    </div>
+</div>
+
+<div id="winner-overlay">
+    <h1>VICTORY!</h1>
+    <h2 id="winner-name">Name</h2>
+    <img id="winner-img" src="" alt="Winner">
+    <br><br>
+    
+    <div style="display: flex; gap: 15px;">
+        <button class="btn-primary" style="background: white; color: #3498db; width: 150px;" onclick="location.reload()">New Game</button>
+        
+        <button class="btn-primary" style="background: transparent; border: 2px solid white; color: white; width: 150px;" onclick="closeWinnerOverlay()">Review Game</button>
+    </div>
+</div>
 
 <script>
-    const arena = document.getElementById("arena");
-    const logArea = document.getElementById("log");
-    const spinner = document.getElementById("loadingSpinner");
+    // GLOBAL STATE
+    let defaultAgents = [];
+    let currentPlayersState = []; 
+    
+    // ELEMENTS
+    const slider = document.getElementById("agentSlider");
+    const sliderValDisplay = document.getElementById("sliderValue");
+    const configContainer = document.getElementById("agents-config");
+    
+    // --- AVATAR URL (Bottts) ---
+    const getAvatar = (seed) => `https://api.dicebear.com/9.x/bottts-neutral/svg?seed=${seed}`;
 
-    /* Show loading animation */
-    function showLoading() {
-        spinner.style.display = "block";
+    window.onload = async () => {
+        try {
+            const res = await fetch("http://127.0.0.1:8000/defaults");
+            defaultAgents = await res.json();
+            renderConfigInputs(slider.value);
+        } catch(e) { console.error(e); }
+    };
+
+    slider.oninput = function() {
+        sliderValDisplay.innerText = this.value;
+        renderConfigInputs(this.value);
     }
 
-    /* Hide loading animation */
-    function hideLoading() {
-        spinner.style.display = "none";
+    function renderConfigInputs(count) {
+        configContainer.innerHTML = ""; 
+        for (let i = 0; i < count; i++) {
+            const defName = defaultAgents[i] ? defaultAgents[i].name : `Bot ${i+1}`;
+            const defPers = defaultAgents[i] ? defaultAgents[i].personality_prompt : "Generic Bot";
+            
+            const row = document.createElement("div");
+            row.className = "agent-row";
+            row.innerHTML = `
+                <img src="${getAvatar(defName)}" class="agent-avatar" id="img-${i}">
+                <div style="flex:1"><input type="text" id="name-${i}" value="${defName}" oninput="updatePreview(${i})"></div>
+                <div style="flex:2"><input type="text" id="pers-${i}" value="${defPers}"></div>
+            `;
+            configContainer.appendChild(row);
+        }
     }
 
-    async function initGame() {
+    window.updatePreview = (index) => {
+        const nameVal = document.getElementById(`name-${index}`).value;
+        document.getElementById(`img-${index}`).src = getAvatar(nameVal);
+    }
+
+    async function validateAndStart() {
+        const count = parseInt(slider.value);
+        let players = [];
+        let missing = false;
+
+        for (let i = 0; i < count; i++) {
+            let name = document.getElementById(`name-${i}`).value.trim();
+            let pers = document.getElementById(`pers-${i}`).value.trim();
+            if (!name || !pers) missing = true;
+            players.push({ name, personality: pers });
+        }
+
+        if (missing) {
+            if (!confirm("Some fields are empty. Autofill?")) return;
+            players = players.map((p, idx) => ({
+                name: p.name || (defaultAgents[idx]?.name || `Bot ${idx}`),
+                personality: p.personality || (defaultAgents[idx]?.personality_prompt || "Survivalist")
+            }));
+        }
+
         const res = await fetch("http://127.0.0.1:8000/initialize", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({})
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ players: players })
         });
-
         const data = await res.json();
-
-        renderPlayers(data.players);
-        logArea.innerHTML = "Game initialized.<br>";
+        
+        document.getElementById("setup-screen").style.display = "none";
+        document.getElementById("arena-screen").style.display = "block";
+        
+        currentPlayersState = data.players; 
+        renderArena(data.players);
     }
 
-    function renderPlayers(players) {
+    // --- RENDER ARENA ---
+    function renderArena(players) {
+        const arena = document.getElementById("arena");
         arena.innerHTML = "";
 
-        players.forEach(p => {
+        players.forEach((p, index) => {
             const card = document.createElement("div");
-            card.classList.add("player-card");
-            if (!p.is_alive) card.classList.add("eliminated");
-
+            card.className = `player-card ${p.is_alive ? '' : 'eliminated'}`;
+            // Add click listener
+            card.onclick = () => openModal(index);
+            
             card.innerHTML = `
+                <img src="${getAvatar(p.name)}" alt="${p.name}">
                 <h3>${p.name}</h3>
-                <p>${p.is_alive ? "Alive" : "Dead"}</p>
+                <p>${p.is_alive ? "OPERATIONAL" : "TERMINATED"}</p>
             `;
-
             arena.appendChild(card);
         });
     }
 
-    /* =============================================================
-       playRound(): NOW WITH SPINNER
-       ============================================================= */
+    // --- GAME LOOP ---
     async function playRound() {
-        const question = document.getElementById("promptInput").value;
-
-        if (!question) {
-            alert("Please enter a question.");
-            return;
-        }
-
-        logArea.innerHTML += `<br><strong>Gamemaker:</strong> ${question}<br>`;
-        logArea.innerHTML += `⚙ Agents thinking...<br>`;
-
-        showLoading();  // <-- SHOW SPINNER BEFORE LLM CALL
+        const input = document.getElementById("promptInput");
+        if (!input.value) return alert("Enter a scenario!");
+        
+        document.getElementById("loadingSpinner").style.display = "block";
+        const log = document.getElementById("log");
+        log.innerHTML += `<br><strong style="color:#2980b9">Gamemaker:</strong> ${input.value}<br><hr>`;
 
         const res = await fetch("http://127.0.0.1:8000/play_round", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ question })
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ question: input.value })
         });
-
         const data = await res.json();
+        
+        document.getElementById("loadingSpinner").style.display = "none";
 
-        hideLoading();  // <-- HIDE SPINNER AFTER RESPONSE
+        // Update Global State
+        currentPlayersState = data.players; 
 
+        // Update Log
         for (const [name, answer] of Object.entries(data.answers)) {
-            logArea.innerHTML += `<strong>${name}:</strong> ${answer}<br>`;
+            log.innerHTML += `<strong>${name}:</strong> ${answer}<br>`;
+        }
+        if (data.eliminated) {
+            log.innerHTML += `<br>💀 <span style="color:#c0392b">ELIMINATED: <strong>${data.eliminated}</strong></span><br>`;
         }
 
-        logArea.innerHTML += `<br>💀 Eliminated: <strong>${data.eliminated}</strong><br>`;
-
-        renderPlayers(data.alive_players);
+        renderArena(data.players);
 
         if (data.game_over) {
             const winner = data.players.find(p => p.is_alive);
-            if (winner) {
-                logArea.innerHTML += `<br>🏆 Winner: <strong>${winner.name}</strong>`;
-            }        
+            if (winner) showWinner(winner);
         }
+    }
+
+    // --- MODAL LOGIC ---
+    function openModal(index) {
+        const player = currentPlayersState[index];
+        const modal = document.getElementById("modal-overlay");
+        
+        document.getElementById("modal-name").innerText = player.name;
+        document.getElementById("modal-persona").innerText = player.personality_prompt;
+        
+        const historyDiv = document.getElementById("modal-history");
+        historyDiv.innerHTML = "";
+
+        player.logs.forEach((log, i) => {
+            const voteData = player.vote_history ? player.vote_history[i] : null;
+            
+            let html = `<div class="history-item">
+                <strong>Round ${i+1} Response:</strong><br>${log}`;
+            
+            if (voteData) {
+                html += `<div class="vote-item">
+                    <strong>Voted for:</strong> ${voteData.target}<br>
+                    <strong>Reason:</strong> ${voteData.reasoning}
+                </div>`;
+            }
+            html += `</div>`;
+            historyDiv.innerHTML += html;
+        });
+
+        modal.style.display = "flex";
+    }
+
+    function closeModal(e) {
+        if (e.target.id === "modal-overlay" || e.target.classList.contains("close-btn")) {
+            document.getElementById("modal-overlay").style.display = "none";
+        }
+    }
+
+    function showWinner(player) {
+        const overlay = document.getElementById("winner-overlay");
+        document.getElementById("winner-name").innerText = player.name;
+        document.getElementById("winner-img").src = getAvatar(player.name);
+        overlay.style.display = "flex";
+    }
+    function closeWinnerOverlay() {
+        // Hide the victory screen
+        document.getElementById("winner-overlay").style.display = "none";
+        
+        // Disable the "Next Round" button to prevent errors (since game is over)
+        const nextBtn = document.querySelector("#controls button");
+        nextBtn.disabled = true;
+        nextBtn.innerText = "Game Over";
+        nextBtn.style.background = "#95a5a6";
+        nextBtn.style.cursor = "not-allowed";
     }
 </script>
 

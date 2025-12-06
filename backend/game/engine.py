@@ -1,4 +1,6 @@
 import random
+import asyncio
+import json
 
 class Game:
     def __init__(self, players):
@@ -11,36 +13,50 @@ class Game:
 
 
 
-    def collect_responses(self, question):
+    async def collect_responses(self, question):
         self.current_answers = {}
-
-        for player in self.players:
-            if player.is_alive:
-                answer = player.respond_to_question(question)
-                self.current_answers[player.name] = answer
-                
-    def run_voting_phase(self):
-        transcript = ""
         alive_players = [p for p in self.players if p.is_alive]
 
+        tasks = [
+            player.respond_to_question(question)
+            for player in alive_players
+        ]
+
+        responses = await asyncio.gather(*tasks)
+
+        for player, answer in zip(alive_players, responses):
+            self.current_answers[player.name] = answer
+                
+    async def run_voting_phase(self):
+        transcript = ""
+        alive_players = [p for p in self.players if p.is_alive]
 
         for name, answer in self.current_answers.items():
             transcript += f"{name}: {answer}\n"
 
-        for player in self.players:
-            if player.is_alive:
-                vote = player.vote(transcript, alive_players)
-                self.votes[player.name] = vote
+        tasks = [
+            p.vote(transcript, alive_players, self.round)
+            for p in alive_players
+        ]
+
+        votes = await asyncio.gather(*tasks)
+        self.votes = {}
+        for player, vote_result in zip(alive_players, votes):
+            self.votes[player.name] = vote_result
 
     def calculate_elimination(self):
         tally = {}
         alive_players = [p for p in self.players if p.is_alive]
 
+        if len(alive_players) <= 1:
+            self.last_eliminated = None
+            return
+        
         for player in alive_players:
             tally[player.name] = 0
 
-        for voter_name, raw_vote in self.votes.items():
-            cleaned_vote = raw_vote.strip().lower()
+        for voter_name, vote_target_name in self.votes.items():
+            cleaned_vote = str(vote_target_name).strip().lower()
 
             for target in alive_players:
                 if target.name.lower() in cleaned_vote:
@@ -50,7 +66,6 @@ class Game:
         eliminated_name = None
         eliminated_possible_list = []
         highest_votes = -1
-
 
         for name, count in tally.items():
             if count > highest_votes:
@@ -80,12 +95,8 @@ class Game:
                     break            
     
     def check_game_over(self):
-        alive_players = [p for p in self.players if p.is_alive]
-
-        if len(alive_players) <= 1:
-            return True
-        else:
-            return False
+            alive_players = [p for p in self.players if p.is_alive]
+            return len(alive_players) <= 1
         
 
 

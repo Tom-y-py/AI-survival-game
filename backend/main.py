@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 import os
 import json
+import asyncio
 
 app = FastAPI()
 
@@ -29,6 +30,18 @@ class PlayerInput(BaseModel):
 
 class InitRequest(BaseModel):
     players: Optional[List[PlayerInput]] = None
+
+@app.get("/defaults")
+def get_defaults():
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    AGENTS_PATH = os.path.join(BASE_DIR, "data", "agents.json")
+
+    try:
+        with open(AGENTS_PATH, "r") as f:
+            data = json.load(f)
+        return data
+    except FileNotFoundError:
+        return []
 
 @app.post("/initialize")
 def initialize(req: InitRequest):
@@ -65,12 +78,12 @@ def initialize(req: InitRequest):
     }
 
 @app.post("/play_round")
-def play_round(req: QuestionRequest):
+async def play_round(req: QuestionRequest):
     if game_instance is None:
         return {"error": "Game not started"}
     else:
-        game_instance.collect_responses(req.question)
-        game_instance.run_voting_phase()
+        await game_instance.collect_responses(req.question)
+        await game_instance.run_voting_phase()
         game_instance.calculate_elimination()
         game_instance.round += 1
 
@@ -78,7 +91,7 @@ def play_round(req: QuestionRequest):
             "round": game_instance.round,
             "answers": game_instance.current_answers,
             "eliminated": game_instance.last_eliminated,
-            "alive_players": [p.to_dict() for p in game_instance.players],
+            "players": [p.to_dict() for p in game_instance.players],
             "game_over": game_instance.check_game_over()
         }
 
