@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AI Hunger Games</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        /* Arena grid */
+        #arena {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .player-card {
+            padding: 15px;
+            background: white;
+            border-radius: 6px;
+            border: 2px solid #333;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: 0.3s;
+        }
+
+        .eliminated {
+            opacity: 0.4;
+            border-color: red;
+            filter: grayscale(100%);
+        }
+
+        #controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        input[type="text"] {
+            width: 350px;
+            padding: 8px;
+            font-size: 16px;
+        }
+
+        button {
+            padding: 10px 15px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        /* Log */
+        #log {
+            background: white;
+            border: 2px solid #333;
+            padding: 15px;
+            height: 250px;
+            overflow-y: auto;
+            border-radius: 6px;
+        }
+
+        /* ====================== LOADING SPINNER ====================== */
+        #loadingSpinner {
+            display: none; /* hidden by default */
+            margin: 20px auto;
+            border: 8px solid #ddd;
+            border-top: 8px solid #333;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to   { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+<h1>AI Hunger Games Simulator</h1>
+
+<!-- Arena -->
+<div id="arena"></div>
+
+<!-- Controls -->
+<div id="controls">
+    <input id="promptInput" type="text" placeholder="Enter next question..." />
+    <button onclick="initGame()">Start Game</button>
+    <button onclick="playRound()">Next Round</button>
+</div>
+
+<!-- ====================== LOADING SPINNER ELEMENT ====================== -->
+<div id="loadingSpinner"></div>
+
+<!-- Log -->
+<div id="log">Round results will appear here...</div>
+
+<script>
+    const arena = document.getElementById("arena");
+    const logArea = document.getElementById("log");
+    const spinner = document.getElementById("loadingSpinner");
+
+    /* Show loading animation */
+    function showLoading() {
+        spinner.style.display = "block";
+    }
+
+    /* Hide loading animation */
+    function hideLoading() {
+        spinner.style.display = "none";
+    }
+
+    async function initGame() {
+        const res = await fetch("http://127.0.0.1:8000/initialize", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({})
+        });
+
+        const data = await res.json();
+
+        renderPlayers(data.players);
+        logArea.innerHTML = "Game initialized.<br>";
+    }
+
+    function renderPlayers(players) {
+        arena.innerHTML = "";
+
+        players.forEach(p => {
+            const card = document.createElement("div");
+            card.classList.add("player-card");
+            if (!p.is_alive) card.classList.add("eliminated");
+
+            card.innerHTML = `
+                <h3>${p.name}</h3>
+                <p>${p.is_alive ? "Alive" : "Dead"}</p>
+            `;
+
+            arena.appendChild(card);
+        });
+    }
+
+    /* =============================================================
+       playRound(): NOW WITH SPINNER
+       ============================================================= */
+    async function playRound() {
+        const question = document.getElementById("promptInput").value;
+
+        if (!question) {
+            alert("Please enter a question.");
+            return;
+        }
+
+        logArea.innerHTML += `<br><strong>Gamemaker:</strong> ${question}<br>`;
+        logArea.innerHTML += `⚙ Agents thinking...<br>`;
+
+        showLoading();  // <-- SHOW SPINNER BEFORE LLM CALL
+
+        const res = await fetch("http://127.0.0.1:8000/play_round", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ question })
+        });
+
+        const data = await res.json();
+
+        hideLoading();  // <-- HIDE SPINNER AFTER RESPONSE
+
+        for (const [name, answer] of Object.entries(data.answers)) {
+            logArea.innerHTML += `<strong>${name}:</strong> ${answer}<br>`;
+        }
+
+        logArea.innerHTML += `<br>💀 Eliminated: <strong>${data.eliminated}</strong><br>`;
+
+        renderPlayers(data.alive_players);
+
+        if (data.game_over) {
+            logArea.innerHTML += `<br>🏆 Winner: <strong>${data.alive_players[0].name}</strong>`;
+        }
+    }
+</script>
+
+</body>
+</html>
