@@ -187,7 +187,10 @@
         renderPlayers(data.alive_players);
 
         if (data.game_over) {
-            logArea.innerHTML += `<br>🏆 Winner: <strong>${data.alive_players[0].name}</strong>`;
+            const winner = data.players.find(p => p.is_alive);
+            if (winner) {
+                logArea.innerHTML += `<br>🏆 Winner: <strong>${winner.name}</strong>`;
+            }        
         }
     }
 </script>

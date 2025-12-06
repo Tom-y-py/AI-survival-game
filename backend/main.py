@@ -78,7 +78,7 @@ def play_round(req: QuestionRequest):
             "round": game_instance.round,
             "answers": game_instance.current_answers,
             "eliminated": game_instance.last_eliminated,
-            "alive_players": [p.to_dict() for p in game_instance.players if p.is_alive],
+            "alive_players": [p.to_dict() for p in game_instance.players],
             "game_over": game_instance.check_game_over()
         }
 
